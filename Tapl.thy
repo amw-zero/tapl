@@ -1,0 +1,263 @@
+theory Tapl
+
+imports Main
+
+begin
+
+datatype tapl_term = 
+  true | 
+  false | 
+  zero | 
+  If tapl_term tapl_term tapl_term |
+  suc tapl_term |
+  pred  tapl_term |
+  iszero tapl_term
+
+section "Recursive function definition of S"
+
+fun terms :: "nat \<Rightarrow> tapl_term set" where
+"terms 0 = {}" |
+"terms (Suc n) = 
+  {true, false, zero} 
+  \<union> {suc t | t. t \<in> terms n} \<union> {pred t | t. t \<in> terms n} \<union> {iszero t | t. t \<in> terms n}
+  \<union> {If t1 t2 t3 | t1 t2 t3. let termsn = terms n in t1 \<in> termsn \<and> t2 \<in> termsn \<and> t3 \<in> termsn}"
+
+(*
+theorem terms_cumulative_apply: "terms n \<subseteq> terms (n + 1)"
+  apply(induction n)
+   apply(auto)
+    apply(simp_all add: Let_def)
+    apply(blast+)
+  done
+*)
+
+theorem terms_cumulative: "terms n \<subseteq> terms (n + 1)"
+proof (induction n)
+  case 0
+  then show ?case
+    by simp
+next
+  case (Suc n)
+  have "t \<in> terms (Suc n) \<Longrightarrow> t \<in> terms (Suc (Suc n))" for t
+  proof(induction t)
+      case (suc t)
+      then show ?case
+      proof(induction n)
+        case 0
+        then show ?case by auto
+      next
+        case (Suc n)
+        then show ?case by simp
+      qed
+    next
+      case (If t1 t2 t3)
+      then show ?case
+      proof(induction n)
+        case 0
+        then show ?case by auto
+      next
+        case (Suc n)
+        then show ?case by auto
+      qed
+    next   
+      case (pred t)
+      then show ?case
+      proof(induction n)
+        case 0
+        then show ?case by auto
+      next
+        case (Suc n)
+        then show ?case by auto
+      qed
+    next
+      case (iszero t)
+      then show ?case
+      proof(induction n)
+        case 0
+        then show ?case by auto
+      next
+        case (Suc n)
+        then show ?case by auto
+      qed
+    qed auto
+  then show ?case
+    by blast
+qed
+
+theorem terms_cumulative_isar: "terms n \<subseteq> terms (n + 1)"
+proof (induction n)
+  case 0
+  then show ?case by simp
+next
+  case (Suc n)
+  then show ?case
+    apply(auto)
+      apply(simp_all add: Let_def)
+      apply(blast+)
+    done
+qed
+
+section "Inductive definition of S"
+
+inductive_set terms_is :: "tapl_term set" where
+ t: "true: terms_is" |
+ f: "false: terms_is" |
+ z: "zero: terms_is" | 
+ i: "If tapl_term tapl_term tapl_term: terms_is" |
+ s: "suc t: terms_is" |
+ p: "pred t: terms_is" |
+ iz: "iszero t: terms_is"
+
+theorem "terms_is = (\<Union>n. terms n)"
+  apply(induction n rule: terms.induct)
+  oops
+
+section "Boolean expressions"
+
+datatype tapl_bool =
+  TTrue | 
+  FFalse | 
+  IfElse tapl_bool tapl_bool tapl_bool
+
+(*
+inductive is_value_b :: "tapl_bool \<Rightarrow> bool" where
+is_value_true: "is_value_b TTrue" |
+is_value_false: "is_value_b FFalse"
+*)
+
+definition is_value_bd :: "tapl_bool \<Rightarrow> bool" where
+"is_value_bd t = (case t of TTrue \<Rightarrow> True | FFalse \<Rightarrow> True | _ \<Rightarrow> False)"
+
+inductive beval1 :: "tapl_bool \<Rightarrow> tapl_bool \<Rightarrow> bool" where
+beval1_if_true: "beval1 (IfElse TTrue t2 t3) t2" |
+beval1_if_false: "beval1 (IfElse FFalse t2 t3) t3" |
+beval1_if: "beval1 t1 t1' \<Longrightarrow> beval1 (IfElse t1 t2 t3) (IfElse t1' t2 t3)"
+
+schematic_goal ex: "beval1 (IFElse TTrue FFalse TTrue) ?t"
+  apply(rule beval1.beval1_if_true)
+  oops
+
+code_pred beval1 .
+
+definition "nested_if =
+  (IfElse (IfElse TTrue FFalse TTrue) TTrue FFalse)"
+
+values "{t. beval1 (IfElse FFalse TTrue FFalse) t}"
+
+values "{t. beval1 nested_if t}"
+
+values "{t. beval1 TTrue t}"
+
+(* Using Sledgehammer *)
+theorem beval1_determinacy:
+  "beval1 t t' \<Longrightarrow> beval1 t t'' \<Longrightarrow> t' = t''"
+proof (induction t t' arbitrary: t'' rule: beval1.induct)
+  case (beval1_if_true t2 t3)
+  then show ?case by (auto elim: beval1.cases)
+next
+  case (beval1_if_false t2 t3)
+  then show ?case by (metis beval1.simps)
+next
+  case (beval1_if t1 t1' t2 t3)
+  then show ?case
+    by (smt (verit, del_insts) beval1.simps tapl_bool.distinct(4) tapl_bool.distinct(6) tapl_bool.inject)
+qed
+
+section "Normal form"
+
+definition is_normal :: "tapl_bool \<Rightarrow> bool" where
+"is_normal b \<equiv> \<forall>t. \<not>(beval1 b t)"
+
+theorem "is_value_bd t \<Longrightarrow> is_normal t"
+  by (auto simp: is_normal_def is_value_bd_def is_value_b.simps elim: beval1.cases)
+
+theorem "is_normal t \<Longrightarrow> is_value_bd t"
+  unfolding is_normal_def
+  unfolding is_value_bd_def
+proof (induction t)
+  case TTrue
+  then show ?case by simp
+next
+  case FFalse
+  then show ?case by simp
+next
+  case (IfElse t1 t2 t3)
+  then show ?case by simp
+qed
+
+(* Contraposative of is_normal t \<Longrightarrow> is_value_b t. 
+  Tricky part is, showing the TTrue and FFalse cases leads to a contradiction becauset
+  they are values. Don't know how to leave them out of the proof though, since they are
+  part of the datatype
+theorem "\<not>is_value_b t \<Longrightarrow> \<not>is_normal t"
+proof (induction t)
+  case TTrue
+  then show ?case 
+next
+  case FFalse
+  then show ?case sorry
+next
+  case (IfElse t1 t2 t3)
+  then show ?case sorry
+qed
+*)
+
+inductive beval :: "tapl_bool \<Rightarrow> tapl_bool \<Rightarrow> bool" where
+once: "beval1 t t' \<Longrightarrow> beval t t'" |
+reflexive: "beval t t" |
+transitive: "beval t t' \<Longrightarrow> beval t' t'' \<Longrightarrow> beval t t''"
+
+(* Same logic of evaluation with less rules. Easier for proving *)
+inductive beval_better :: "tapl_bool \<Rightarrow> tapl_bool \<Rightarrow> bool" where
+reflexive: "beval_better t t" |
+step: "beval1 t t' \<Longrightarrow> beval_better t' t'' \<Longrightarrow> beval_better t t''"
+
+(*
+theorem "beval t t' \<Longrightarrow> is_normal t' \<Longrightarrow> is_normal t'' \<Longrightarrow>  beval t t'' \<Longrightarrow> t' = t''"
+proof (induction t t' rule: beval.induct)
+  case (once t t')
+  then show ?case
+    apply(metis is_normal_def beval1_determinacy)
+next
+  case (reflexive t)
+  then show ?case sorry
+next
+  case (transitive t t' t'')
+  then show ?case sorry
+qed
+*)
+
+definition is_even :: "nat \<Rightarrow> bool" where
+"is_even n = ((n mod 2) = 0)"
+
+theorem "is_even (n + n)"
+unfolding is_even_def
+proof (induction n)
+  case 0 
+  then show ?case by simp
+next
+  case (Suc n)
+  then show ?case by simp
+qed
+
+section "Introduction of 'funny' evaluation rules"
+
+inductive beval1_funny :: "tapl_bool \<Rightarrow> tapl_bool \<Rightarrow> bool" where
+beval1_if_true: "beval1_funny (IfElse TTrue t2 t3) t2" |
+beval1_if_false: "beval1_funny (IfElse FFalse t2 t3) t3" |
+beval1_if: "beval1_funny t1 t1' \<Longrightarrow> beval1_funny (IfElse t1 t2 t3) (IfElse t1' t2 t3)" |
+beval1_funny: "beval1_funny (IfElse TTrue t2 t3) t3"
+
+code_pred beval1_funny .
+
+(* Nondeterministic evaluation *)
+values "{t. beval1_funny (IfElse TTrue TTrue FFalse) t}"
+
+theorem beval1_funny_determinacy:
+  "beval1_funny t t' \<Longrightarrow> beval1_funny t t'' \<Longrightarrow> t' = t''"
+  quickcheck
+  oops
+
+
+
+end
