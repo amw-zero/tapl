@@ -22,14 +22,13 @@ fun terms :: "nat \<Rightarrow> tapl_term set" where
   \<union> {suc t | t. t \<in> terms n} \<union> {pred t | t. t \<in> terms n} \<union> {iszero t | t. t \<in> terms n}
   \<union> {If t1 t2 t3 | t1 t2 t3. let termsn = terms n in t1 \<in> termsn \<and> t2 \<in> termsn \<and> t3 \<in> termsn}"
 
-(*
+
 theorem terms_cumulative_apply: "terms n \<subseteq> terms (n + 1)"
   apply(induction n)
    apply(auto)
     apply(simp_all add: Let_def)
     apply(blast+)
   done
-*)
 
 theorem terms_cumulative: "terms n \<subseteq> terms (n + 1)"
 proof (induction n)
@@ -150,16 +149,17 @@ values "{t. beval1 TTrue t}"
 
 (* Using Sledgehammer *)
 theorem beval1_determinacy:
-  "beval1 t t' \<Longrightarrow> beval1 t t'' \<Longrightarrow> t' = t''"
+  "\<lbrakk> beval1 t t'; beval1 t t''\<rbrakk> \<Longrightarrow> t' = t''"
 proof (induction t t' arbitrary: t'' rule: beval1.induct)
   case (beval1_if_true t2 t3)
   then show ?case by (auto elim: beval1.cases)
 next
   case (beval1_if_false t2 t3)
-  then show ?case by (metis beval1.simps)
+  then show ?case by (auto elim: beval1.cases)
 next
   case (beval1_if t1 t1' t2 t3)
   then show ?case
+    (* found with sledgehammer *)
     by (smt (verit, del_insts) beval1.simps tapl_bool.distinct(4) tapl_bool.distinct(6) tapl_bool.inject)
 qed
 
@@ -169,7 +169,7 @@ definition is_normal :: "tapl_bool \<Rightarrow> bool" where
 "is_normal b \<equiv> \<forall>t. \<not>(beval1 b t)"
 
 theorem "is_value_bd t \<Longrightarrow> is_normal t"
-  by (auto simp: is_normal_def is_value_bd_def is_value_b.simps elim: beval1.cases)
+  by (auto simp: is_normal_def is_value_bd_def elim: beval1.cases)
 
 theorem "is_normal t \<Longrightarrow> is_value_bd t"
   unfolding is_normal_def
@@ -182,7 +182,9 @@ next
   then show ?case by simp
 next
   case (IfElse t1 t2 t3)
-  then show ?case by simp
+  then show ?case
+    (* Found with sledgehammer *)
+    by (metis beval1_if beval1_if_false beval1_if_true tapl_bool.exhaust tapl_bool.simps(10))
 qed
 
 (* Contraposative of is_normal t \<Longrightarrow> is_value_b t. 
@@ -248,6 +250,7 @@ beval1_if_false: "beval1_funny (IfElse FFalse t2 t3) t3" |
 beval1_if: "beval1_funny t1 t1' \<Longrightarrow> beval1_funny (IfElse t1 t2 t3) (IfElse t1' t2 t3)" |
 beval1_funny: "beval1_funny (IfElse TTrue t2 t3) t3"
 
+
 code_pred beval1_funny .
 
 (* Nondeterministic evaluation *)
@@ -259,5 +262,116 @@ theorem beval1_funny_determinacy:
   oops
 
 
+definition is_normal_funny :: "tapl_bool \<Rightarrow> bool" where
+"is_normal_funny b \<equiv> \<forall>t. \<not>(beval1_funny b t)"
+
+theorem "is_normal_funny t \<Longrightarrow> is_value_bd t"
+  unfolding is_normal_funny_def
+  unfolding is_value_bd_def
+proof (induction t)
+  case TTrue
+  then show ?case by simp
+next
+  case FFalse
+  then show ?case by simp
+next
+  case (IfElse t1 t2 t3)
+  then show ?case
+    (* Found with sledgehammer *)
+    by (metis beval1_if beval1_if_false beval1_if_true tapl_bool.exhaust tapl_bool.simps(10))
+qed
+
+inductive beval2_funny :: "tapl_bool \<Rightarrow> tapl_bool \<Rightarrow> bool" where
+beval1_if_true: "beval2_funny (IfElse TTrue t2 t3) t2" |
+beval1_if_false: "beval2_funny (IfElse FFalse t2 t3) t3" |
+beval1_if: "beval2_funny t1 t1' \<Longrightarrow> beval2_funny (IfElse t1 t2 t3) (IfElse t1' t2 t3)" |
+beval1_funny: "beval2_funny t2 t2' \<Longrightarrow> beval2_funny (IfElse t1 t2 t3) (IfElse t1 t2' t3)"
+
+values "{t. beval1_funny (IfElse TTrue TTrue FFalse) t}"
+
+section "Arithmetic Expressions"
+
+datatype tapl_arith = 
+  TTrue | 
+  FFalse | 
+  Zero |
+  IfElse tapl_arith tapl_arith tapl_arith |
+  Succ tapl_arith |
+  Pred  tapl_arith |
+  IsZero tapl_arith
+
+definition is_numeric :: "tapl_arith \<Rightarrow> bool" where
+"is_numeric t = 
+  (case t of 
+    Zero \<Rightarrow> True |
+    Succ _ \<Rightarrow> True |
+    _ \<Rightarrow> False)" 
+
+definition "is_value_arith" :: "tapl_arith \<Rightarrow> bool" where
+"is_value_arith t =
+  (case t of 
+    TTrue \<Rightarrow> True |
+    FFalse \<Rightarrow> True |
+    Zero \<Rightarrow> True |
+    Succ _ \<Rightarrow> True |
+    _ \<Rightarrow> False)"
+
+inductive aeval1 :: "tapl_arith \<Rightarrow> tapl_arith \<Rightarrow> bool" where
+(* Bool evaluation *)
+aeval1_if_true: "aeval1 (IfElse TTrue t2 t3) t2" |
+aeval1_if_false: "aeval1 (IfElse FFalse t2 t3) t3" |
+aeval1_if: "aeval1 t1 t1' \<Longrightarrow> aeval1 (IfElse t1 t2 t3) (IfElse t1' t2 t3)" |
+
+(* Arithmetic evaluation *)
+aeval1_succ: "aeval1 t1 t1' \<Longrightarrow> aeval1 (Succ t1) (Succ t1')" |
+aeval1_pred_0: "aeval1 (Pred Zero) Zero" |
+aeval1_pred_succ_0: "is_numeric nv \<Longrightarrow> aeval1 (Pred (Succ nv)) nv" |
+aeval1_pred: "aeval1 t1 t1' \<Longrightarrow> aeval1 (Pred t1) (Pred t1')" |
+aeval1_iszero_0: "aeval1 (IsZero Zero) TTrue" |
+aeval1_iszero_suc: "is_numeric nv \<Longrightarrow> aeval1 (IsZero (Succ nv)) FFalse" |
+aeval1_iszero: "aveal1 t1 t1' \<Longrightarrow> aeval1 (IsZero t1) (IsZero t1')"
+
+theorem arith_determinacy_apply: "aeval1 t t' \<Longrightarrow> aeval1 t' t'' \<Longrightarrow> t' = t''"
+  apply(induction t t' arbitrary: t'' rule: aeval1.induct)
+           apply(rule aeval1_if_true)
+  oops
+
+lemma "aeval1 (IfElse (IsZero Zero) TTrue FFalse) (IfElse TTrue TTrue FFalse)"
+  apply(rule aeval1_if)
+  apply(rule aeval1_iszero_0)
+  done
+
+theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
+proof (induction t t' arbitrary: t'' rule: aeval1.induct)
+  case (aeval1_if_true t2 t3)
+  then show ?case by (auto intro: aeval1_if_true elim: aeval1.cases)
+next
+  case (aeval1_if_false t2 t3)
+  then show ?case sorry
+next
+  case (aeval1_if t1 t1' t2 t3)
+  then show ?case by (auto del: aeval1.simps)
+next
+  case (aeval1_succ t1 t1')
+  then show ?case sorry
+next
+  case aeval1_pred_0
+  then show ?case sorry
+next
+  case (aeval1_pred_succ_0 nv)
+  then show ?case sorry
+next
+  case (aeval1_pred t1 t1')
+  then show ?case sorry
+next
+  case aeval1_iszero_0
+  then show ?case sorry
+next
+  case (aeval1_iszero_suc nv)
+  then show ?case sorry
+next
+  case (aeval1_iszero aveal1 t1 t1')
+  then show ?case sorry
+qed
 
 end
