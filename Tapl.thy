@@ -30,6 +30,7 @@ theorem terms_cumulative_apply: "terms n \<subseteq> terms (n + 1)"
     apply(blast+)
   done
 
+(*
 theorem terms_cumulative: "terms n \<subseteq> terms (n + 1)"
 proof (induction n)
   case 0
@@ -46,7 +47,7 @@ next
         then show ?case by auto
       next
         case (Suc n)
-        then show ?case by simp
+        then show ?case sorry
       qed
     next
       case (If t1 t2 t3)
@@ -82,6 +83,7 @@ next
   then show ?case
     by blast
 qed
+*)
 
 theorem terms_cumulative_isar: "terms n \<subseteq> terms (n + 1)"
 proof (induction n)
@@ -108,7 +110,6 @@ inductive_set terms_is :: "tapl_term set" where
  iz: "iszero t: terms_is"
 
 theorem "terms_is = (\<Union>n. terms n)"
-  apply(induction n rule: terms.induct)
   oops
 
 section "Boolean expressions"
@@ -132,11 +133,35 @@ beval1_if_true: "beval1 (IfElse TTrue t2 t3) t2" |
 beval1_if_false: "beval1 (IfElse FFalse t2 t3) t3" |
 beval1_if: "beval1 t1 t1' \<Longrightarrow> beval1 (IfElse t1 t2 t3) (IfElse t1' t2 t3)"
 
-schematic_goal ex: "beval1 (IFElse TTrue FFalse TTrue) ?t"
-  apply(rule beval1.beval1_if_true)
-  oops
+fun beval1f :: "tapl_bool \<Rightarrow> tapl_bool" where
+"beval1f (IfElse TTrue t2 t3) = t2" |
+"beval1f (IfElse FFalse t2 t3) = t3" |
+"beval1f (IfElse t1 t2 t3) = (IfElse (beval1f t1) t2 t3)" |
+"beval1f t = t"
+
+fun bevalf :: "nat \<Rightarrow> tapl_bool \<Rightarrow> tapl_bool" where
+"bevalf 0 t = t" | 
+"bevalf _ TTrue = TTrue" |
+"bevalf _ FFalse = FFalse" |
+"bevalf (Suc fuel) t = bevalf fuel (beval1f t)"
+
+theorem beval1f_determinacy: "\<lbrakk>beval1f t = t'; beval1f t = t''\<rbrakk> \<Longrightarrow> t' = t''"
+proof(induction t)
+  case TTrue
+  then show ?case by simp
+next
+  case FFalse
+  then show ?case by simp
+next
+  case (IfElse t1 t2 t3)
+  then show ?case by simp
+qed
+
+export_code bevalf in OCaml
 
 code_pred beval1 .
+
+(*export_code beval1 in OCaml*)
 
 definition "nested_if =
   (IfElse (IfElse TTrue FFalse TTrue) TTrue FFalse)"
@@ -214,6 +239,12 @@ inductive beval_better :: "tapl_bool \<Rightarrow> tapl_bool \<Rightarrow> bool"
 reflexive: "beval_better t t" |
 step: "beval1 t t' \<Longrightarrow> beval_better t' t'' \<Longrightarrow> beval_better t t''"
 
+code_pred (modes: i => o => bool as beval') beval . 
+
+definition "beval_ex t = Predicate.the (beval' t)"
+
+export_code beval_ex in OCaml
+
 (*
 theorem "beval t t' \<Longrightarrow> is_normal t' \<Longrightarrow> is_normal t'' \<Longrightarrow>  beval t t'' \<Longrightarrow> t' = t''"
 proof (induction t t' rule: beval.induct)
@@ -228,19 +259,6 @@ next
   then show ?case sorry
 qed
 *)
-
-definition is_even :: "nat \<Rightarrow> bool" where
-"is_even n = ((n mod 2) = 0)"
-
-theorem "is_even (n + n)"
-unfolding is_even_def
-proof (induction n)
-  case 0 
-  then show ?case by simp
-next
-  case (Suc n)
-  then show ?case by simp
-qed
 
 section "Introduction of 'funny' evaluation rules"
 
@@ -331,15 +349,37 @@ aeval1_iszero_0: "aeval1 (IsZero Zero) TTrue" |
 aeval1_iszero_suc: "is_numeric nv \<Longrightarrow> aeval1 (IsZero (Succ nv)) FFalse" |
 aeval1_iszero: "aveal1 t1 t1' \<Longrightarrow> aeval1 (IsZero t1) (IsZero t1')"
 
-theorem arith_determinacy_apply: "aeval1 t t' \<Longrightarrow> aeval1 t' t'' \<Longrightarrow> t' = t''"
-  apply(induction t t' arbitrary: t'' rule: aeval1.induct)
-           apply(rule aeval1_if_true)
-  oops
-
 lemma "aeval1 (IfElse (IsZero Zero) TTrue FFalse) (IfElse TTrue TTrue FFalse)"
   apply(rule aeval1_if)
   apply(rule aeval1_iszero_0)
   done
+
+(*
+theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
+proof (induction t)
+  case TTrue
+  then show ?case sorry
+next
+  case FFalse
+  then show ?case sorry
+next
+  case Zero
+  then show ?case sorry
+next
+  case (IfElse t1 t2 t3)
+  then show ?case sorry
+next
+  case (Succ t1)
+  then show ?case
+    (* Sledgehammer found a proof *)
+    (*by (smt (verit, ccfv_SIG) aeval1.simps tapl_arith.distinct(31) tapl_arith.distinct(37) tapl_arith.distinct(39) tapl_arith.inject(2))*)
+next
+  case (Pred t)
+  then show ?case sorry
+next
+  case (IsZero t)
+  then show ?case sorry
+qed
 
 theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
 proof (induction t t' arbitrary: t'' rule: aeval1.induct)
@@ -353,7 +393,8 @@ next
   then show ?case by (auto del: aeval1.simps)
 next
   case (aeval1_succ t1 t1')
-  then show ?case sorry
+  from aeval1_succ.prems aeval1_succ.hyps show ?case
+  by auto(elim: aeval1.cases)
 next
   case aeval1_pred_0
   then show ?case sorry
@@ -373,5 +414,7 @@ next
   case (aeval1_iszero aveal1 t1 t1')
   then show ?case sorry
 qed
+
+*)
 
 end
