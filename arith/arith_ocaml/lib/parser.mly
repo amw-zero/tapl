@@ -1,16 +1,27 @@
-%token SUCC
-%token PRED
+%{
+open Core.Arith
+%}
+
+// Values
 %token TRUE
 %token FALSE
+%token ZERO
+
+%token SUCC
+%token PRED
+
 %token IF
 %token THEN
 %token ELSE
+
+%token ISZERO
+
 %token LPAREN
 %token RPAREN
 %token EOF
 
 %start prog
-%type <Core.Arith.arith option> prog 
+%type <arith option> prog 
 
 %%
 
@@ -20,10 +31,14 @@ prog:
 
 
 expression:
-  | TRUE                          { Core.Arith.ATrue }
-  | FALSE                         { Core.Arith.AFalse}
-  | s = SUCC e = expression       { Core.Arith.ASucc(e) }
-  | s = PRED e = expression       { Core.Arith.APred(e) }
+  | TRUE                          { ATrue }
+  | FALSE                         { AFalse}
+  | ZERO                          { AZero }
+  | s = SUCC e = expression       { ASucc(e) }
+  | s = PRED e = expression       { APred(e) }
+  | SUCC e = expression           { ASucc(e) }
+  | PRED e = expression           { APred(e) }
+  | ISZERO e = expression         { AIsZero(e) }
   | IF e1 = expression THEN e2 = expression ELSE e3 = expression 
-                                  { Core.Arith.AIfElse(e1, e2, e3) }
+                                  { AIfElse(e1, e2, e3) }
   | LPAREN e = expression RPAREN  { e }

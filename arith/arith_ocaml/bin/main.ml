@@ -24,23 +24,15 @@ let rec parse_and_print lexbuf =
 
     let result = Core.Arith.bigstep_ex value |> Util.print_arith in
     Printf.printf "Result: %s\n" result;
+    
     parse_and_print lexbuf
   | None -> ()
 
-let loop filename () =
+let execute filename () =
   let inx = open_in filename in
   let lexbuf = Lexing.from_channel inx in
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
   parse_and_print lexbuf; 
   close_in inx
 
-let () = loop "arithprog.txt" ()
-
-(*
-let () =
-  Command.basic_spec ~summary:"Parse and display JSON"
-    Command.Spec.(empty +> anon ("filename" %: string))
-    loop
-  |> Command_unix.run
-*)  
-
+let () = execute "arithprog.txt" ()
