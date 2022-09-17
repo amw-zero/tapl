@@ -1,6 +1,0 @@
-(** @canonical Tapl_ocaml.Export1 *)
-module Export1 = Tapl_ocaml__Export1
-
-
-(** @canonical Tapl_ocaml.Export2 *)
-module Export2 = Tapl_ocaml__Export2
