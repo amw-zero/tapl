@@ -19,7 +19,11 @@ let parse_with_error lexbuf =
 let rec parse_and_print lexbuf =
   match parse_with_error lexbuf with
   | Some value ->
-    Util.print_arith value |> print_endline;
+    let parsed = Util.print_arith value in
+    Printf.printf "Parsed term: %s\n" parsed;
+
+    let result = Core.Arith.bigstep_ex value |> Util.print_arith in
+    Printf.printf "Result: %s\n" result;
     parse_and_print lexbuf
   | None -> ()
 
@@ -27,7 +31,7 @@ let loop filename () =
   let inx = open_in filename in
   let lexbuf = Lexing.from_channel inx in
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-  parse_and_print lexbuf;
+  parse_and_print lexbuf; 
   close_in inx
 
 let () = loop "arithprog.txt" ()
