@@ -1,0 +1,177 @@
+theory Arith
+
+imports Main Tapl
+
+begin
+
+section "Arithmetic Expressions"
+
+datatype tapl_arith = 
+  TTrue | 
+  FFalse | 
+  Zero |
+  IfElse tapl_arith tapl_arith tapl_arith |
+  Succ tapl_arith |
+  Pred  tapl_arith |
+  IsZero tapl_arith
+
+definition is_numeric :: "tapl_arith \<Rightarrow> bool" where
+"is_numeric t = 
+  (case t of 
+    Zero \<Rightarrow> True |
+    Succ _ \<Rightarrow> True |
+    _ \<Rightarrow> False)" 
+
+definition "is_value_arith" :: "tapl_arith \<Rightarrow> bool" where
+"is_value_arith t =
+  (case t of 
+    TTrue \<Rightarrow> True |
+    FFalse \<Rightarrow> True |
+    Zero \<Rightarrow> True |
+    Succ _ \<Rightarrow> True |
+    _ \<Rightarrow> False)"
+
+inductive aeval1 :: "tapl_arith \<Rightarrow> tapl_arith \<Rightarrow> bool" where
+(* Bool evaluation *)
+aeval1_if_true: "aeval1 (IfElse TTrue t2 t3) t2" |
+aeval1_if_false: "aeval1 (IfElse FFalse t2 t3) t3" |
+aeval1_if: "aeval1 t1 t1' \<Longrightarrow> aeval1 (IfElse t1 t2 t3) (IfElse t1' t2 t3)" |
+
+(* Arithmetic evaluation *)
+aeval1_succ: "aeval1 t1 t1' \<Longrightarrow> aeval1 (Succ t1) (Succ t1')" |
+aeval1_pred_0: "aeval1 (Pred Zero) Zero" |
+aeval1_pred_succ_0: "is_numeric nv \<Longrightarrow> aeval1 (Pred (Succ nv)) nv" |
+aeval1_pred: "aeval1 t1 t1' \<Longrightarrow> aeval1 (Pred t1) (Pred t1')" |
+aeval1_iszero_0: "aeval1 (IsZero Zero) TTrue" |
+aeval1_iszero_suc: "is_numeric nv \<Longrightarrow> aeval1 (IsZero (Succ nv)) FFalse" |
+aeval1_iszero: "aveal1 t1 t1' \<Longrightarrow> aeval1 (IsZero t1) (IsZero t1')"
+
+print_theorems
+
+lemma "aeval1 (IfElse (IsZero Zero) TTrue FFalse) (IfElse TTrue TTrue FFalse)"
+  apply(rule aeval1_if)
+  apply(rule aeval1_iszero_0)
+  done
+
+lemma "aeval1 (Succ (IfElse (IsZero Zero) TTrue FFalse)) (Succ (IfElse TTrue TTrue FFalse))"
+  apply(rule aeval1_succ)
+  apply(rule aeval1_if)
+  apply(rule aeval1_iszero_0)
+  done
+
+theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
+proof (induction t t' arbitrary: t'' rule: aeval1.induct)
+  case (aeval1_if_true t2 t3)
+  then show ?case sorry
+next
+  case (aeval1_if_false t2 t3)
+  then show ?case sorry
+next
+  case (aeval1_if t1 t1' t2 t3)
+  then show ?case sorry
+next
+  case (aeval1_succ t1 t1')
+  then show ?case by (auto elim: aeval1.cases)
+next
+  case aeval1_pred_0
+  then show ?case by (auto elim: aeval1.cases)
+next
+  case (aeval1_pred_succ_0 nv)
+  then show ?case sorry
+next
+  case (aeval1_pred t1 t1')
+  then show ?case sorry
+next
+  case aeval1_iszero_0
+  then show ?case by (auto elim: aeval1.cases)
+next
+  case (aeval1_iszero_suc nv)
+  then show ?case sorry
+next
+  case (aeval1_iszero aveal1 t1 t1')
+  then show ?case sorry
+qed
+  
+(*
+theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
+proof (induction t t' arbitrary: t'' rule: aeval1.induct)
+  case (aeval1_if_true t2 t3)
+  print_theorems
+  then show ?case
+next
+  case (aeval1_if_false t2 t3)
+  then show ?case sorry
+next
+  case (aeval1_if t1 t1' t2 t3)
+  then show ?case by (auto del: aeval1.simps)
+next
+  case (aeval1_succ t1 t1')
+  from aeval1_succ.prems aeval1_succ.hyps show ?case
+  by auto(elim: aeval1.cases)
+next
+  case aeval1_pred_0
+  then show ?case sorry
+next
+  case (aeval1_pred_succ_0 nv)
+  then show ?case sorry
+next
+  case (aeval1_pred t1 t1')
+  then show ?case sorry
+next
+  case aeval1_iszero_0
+  then show ?case sorry
+next
+  case (aeval1_iszero_suc nv)
+  then show ?case sorry
+next
+  case (aeval1_iszero aveal1 t1 t1')
+  then show ?case sorry
+qed
+*)
+
+inductive aeval :: "tapl_arith \<Rightarrow> tapl_arith \<Rightarrow> bool" where
+once: "aeval t t' \<Longrightarrow> aeval t t'" |
+reflexive: "aeval t t" |
+transitive: "aeval t t' \<Longrightarrow> aeval t' t'' \<Longrightarrow> aeval t t''"
+
+section "Big-step semantics"
+
+inductive bigstep :: "tapl_arith \<Rightarrow> tapl_arith \<Rightarrow> bool" where
+bval: "is_value_arith t \<Longrightarrow> bigstep t t" |
+bif_true: "\<lbrakk> bigstep t1 TTrue; bigstep t2 v\<rbrakk> \<Longrightarrow> bigstep (IfElse t1 t2 t3) v" |
+bif_false: "\<lbrakk> bigstep t1 FFalse; bigstep t3 v\<rbrakk> \<Longrightarrow> bigstep (IfElse t1 t2 t3) v" |
+bsucc: "\<lbrakk>is_numeric v; bigstep t v\<rbrakk> \<Longrightarrow> bigstep (Succ t) (Succ v)" |
+bpred_zero: "bigstep t Zero \<Longrightarrow> bigstep (Pred t) Zero" |
+bpred_succ: "\<lbrakk>is_numeric v; bigstep t (Succ v)\<rbrakk> \<Longrightarrow> bigstep (Pred t) v" |
+bis_zero_zero: "bigstep t Zero \<Longrightarrow> bigstep (IsZero t) TTrue" |
+bis_zero_succ: "\<lbrakk>is_numeric v; bigstep t (Succ v)\<rbrakk> \<Longrightarrow> bigstep (IsZero t) FFalse"
+
+code_pred bigstep .
+
+values "{t. bigstep TTrue t}"
+
+theorem "bigstep t t' = aeval t t'"
+proof(induction t)
+  case TTrue
+  then show ?case by simp
+next
+  case FFalse
+  then show ?case sorry
+next
+  case Zero
+  then show ?case sorry
+next
+  case (IfElse t1 t2 t3)
+  then show ?case sorry
+next
+  case (Succ t)
+  then show ?case by (auto elim: bigstep.cases)
+next
+  case (Pred t)
+  then show ?case sorry
+next
+  case (IsZero t)
+  then show ?case sorry
+qed
+
+end

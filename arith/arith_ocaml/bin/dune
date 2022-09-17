@@ -1,0 +1,4 @@
+(executable
+ (public_name arith_ocaml)
+ (name main)
+ (libraries arith_ocaml))

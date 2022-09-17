@@ -1,4 +1,4 @@
 (executable
  (public_name tapl_ocaml)
  (name main)
- (libraries tapl_ocaml))
+ (libraries tapllib))

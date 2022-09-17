@@ -1,0 +1,5 @@
+# dune init proj arith_ocaml
+# OCAMLPARAM: unset
+# Shared cache: disabled
+# Workspace root: /Users/alexweisberger/code/tapl/arith
+# Auto-detected concurrency: 10

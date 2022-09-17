@@ -1,6 +1,6 @@
 theory Tapl
 
-imports Main
+imports Main "HOL.String" "HOL-Library.Code_Target_Nat"
 
 begin
 
@@ -21,7 +21,6 @@ fun terms :: "nat \<Rightarrow> tapl_term set" where
   {true, false, zero} 
   \<union> {suc t | t. t \<in> terms n} \<union> {pred t | t. t \<in> terms n} \<union> {iszero t | t. t \<in> terms n}
   \<union> {If t1 t2 t3 | t1 t2 t3. let termsn = terms n in t1 \<in> termsn \<and> t2 \<in> termsn \<and> t3 \<in> termsn}"
-
 
 theorem terms_cumulative_apply: "terms n \<subseteq> terms (n + 1)"
   apply(induction n)
@@ -112,6 +111,224 @@ inductive_set terms_is :: "tapl_term set" where
 theorem "terms_is = (\<Union>n. terms n)"
   oops
 
+inductive tapl_consts :: "tapl_term \<Rightarrow> tapl_term set \<Rightarrow> bool" where
+c_true: "tapl_consts true {true}" |
+c_false: "tapl_consts false {false}" |
+c_0: "tapl_consts zero {zero}" |
+c_succ: "tapl_consts t1 s \<Longrightarrow> tapl_consts (suc t1) s" |
+c_pred: "tapl_consts t1 s \<Longrightarrow> tapl_consts (pred t1) s" |
+c_iszero: "tapl_consts t1 s \<Longrightarrow> tapl_consts (iszero t1) s" |
+c_if: "\<lbrakk>tapl_consts t1 s1; tapl_consts t2 s2; tapl_consts t3 s3\<rbrakk> \<Longrightarrow> tapl_consts (If t1 t2 t3) (s1 \<union> s2 \<union> s3)"
+
+inductive tapl_size :: "tapl_term \<Rightarrow> nat \<Rightarrow> bool" where
+s_true: "tapl_size true 1" |
+s_false: "tapl_size false 1" |
+s_0: "tapl_size zero 1" |
+s_succ: "tapl_size t1 s \<Longrightarrow> tapl_size (suc t1) (s + 1)" |
+s_pred: "tapl_size t1 s \<Longrightarrow> tapl_size (pred t1) (s + 1)" |
+s_iszero: "tapl_size t1 s \<Longrightarrow> tapl_size (iszero t1) (s + 1)" |
+s_if: "\<lbrakk>tapl_size t1 s1; tapl_size t2 s2; tapl_size t3 s3\<rbrakk> \<Longrightarrow> tapl_size (If t1 t2 t3) (Suc (s1 + s2 + s3))"
+
+inductive tapl_depth :: "tapl_term \<Rightarrow> nat \<Rightarrow> bool" where
+d_true: "tapl_depth true 1" |
+d_false: "tapl_depth false 1" |
+d_0: "tapl_depth zero 1" |
+d_succ: "tapl_depth t1 s \<Longrightarrow> tapl_depth (suc t1) (s + 1)" |
+d_pred: "tapl_depth t1 s \<Longrightarrow> tapl_depth (pred t1) (s + 1)" |
+d_iszero: "tapl_depth t1 s \<Longrightarrow> tapl_depth (iszero t1) (s + 1)" |
+d_if: "\<lbrakk>tapl_depth t1 s1; tapl_depth t2 s2; tapl_depth t3 s3\<rbrakk> \<Longrightarrow> tapl_depth (If t1 t2 t3) (Suc ((max s1 (max s2 s3))))"
+
+lemma 
+  assumes "finite c"
+  shows "\<lbrakk>tapl_consts t c; tapl_size t s; tapl_depth t d\<rbrakk> \<Longrightarrow> card c \<le> s"
+  using [[simp_trace_new]]
+proof(induction d rule: less_induct)
+  case (less x)
+  then show ?case
+  proof (induction t)
+    case true
+    then show ?case sorry
+  next
+    case false
+    then show ?case sorry
+  next
+    case zero
+    then show ?case sorry
+  next
+    case (If t1 t2 t3)
+    then show ?case sorry
+  next
+    case (suc t)
+    then show ?case sorry
+  next
+    case (pred t)
+    then show ?case sorry
+  next
+    case (iszero t)
+    then show ?case sorry
+  qed
+qed
+
+fun tapl_constsf :: "tapl_term \<Rightarrow> tapl_term set" where
+"tapl_constsf true = {true}" |
+"tapl_constsf false = {false}" |
+"tapl_constsf zero = {zero}" |
+"tapl_constsf (suc t1) = tapl_constsf t1" |
+"tapl_constsf (pred t1) = tapl_constsf t1" |
+"tapl_constsf (iszero t1) = tapl_constsf t1" |
+"tapl_constsf (If t1 t2 t3) = (tapl_constsf t1 \<union> tapl_constsf t2 \<union> tapl_constsf t3)"
+
+fun tapl_sizef :: "tapl_term \<Rightarrow> nat" where
+"tapl_sizef true = 1" |
+"tapl_sizef false = 1" |
+"tapl_sizef zero = 1" |
+"tapl_sizef (suc t1) = (tapl_sizef t1) + 1" |
+"tapl_sizef (pred t1) = (tapl_sizef t1) + 1" |
+"tapl_sizef (iszero t1) = (tapl_sizef t1) + 1" |
+"tapl_sizef (If t1 t2 t3) = tapl_sizef t1 + tapl_sizef t2 + tapl_sizef t3 + 1"
+
+fun tapl_depthf :: "tapl_term \<Rightarrow> nat" where
+"tapl_depthf true = 1" |
+"tapl_depthf false = 1" |
+"tapl_depthf  zero = 1" |
+"tapl_depthf (suc t1) = (tapl_depthf t1) + 1" |
+"tapl_depthf (pred t1) = (tapl_depthf t1) + 1" |
+"tapl_depthf (iszero t1) = (tapl_depthf t1) + 1" |
+"tapl_depthf (If t1 t2 t3) = max (tapl_depthf t1) (max (tapl_depthf t2) (tapl_depthf t3)) + 1"
+
+(*
+lemma example:
+  fixes f :: "nat \<Rightarrow> nat"
+  assumes asm: "f (f n) < f (n + 1)" and "kf = f n"
+  shows "n \<le> f n"
+  proof (induction kf rule: less_induct)
+  case (less k)
+    then have IH: "y < k \<Longrightarrow> n \<le> f n" by simp
+    show ?case
+    proof cases
+    assume "n = 0"
+    then show ?thesis by simp
+  next
+    assume "n \<noteq> 0"
+    then obtain m where "n = m + 1" by (cases n) simp_all
+    from asm have "f (f m) < f n" unfolding \<open>n = m + 1\<close> .
+    with IH have f m \<le> f (f m) .
+    also note 〈f (f m) < f n〉
+    finally have f m < f n .
+    with IH have m \<le> f m .
+    also note 〈f m < f n〉
+    finally have m < f n .
+    then show n \<le> f n using 〈n = m + 1〉 by simp
+  qed
+qed
+*)
+
+lemma "card (tapl_constsf t) \<le> tapl_sizef t"
+proof (induction t)
+  case true
+  print_theorems
+  then show ?case by simp
+next
+  case false
+  then show ?case by simp
+next
+  case zero
+  then show ?case by simp
+next
+  case (If t1 t2 t3)
+  then show ?case sorry
+next
+  case (suc t)
+  then show ?case by auto
+next
+  case (pred t)
+  then show ?case by auto
+next
+  case (iszero t)
+  then show ?case by auto
+qed
+
+lemma "\<lbrakk>tapl_depthf t = d\<rbrakk> \<Longrightarrow> card (tapl_constsf t) \<le> tapl_sizef t"
+proof (induction d arbitrary: t rule: less_induct)
+  case (less x)
+  print_theorems
+  show ?case
+  proof (cases t)
+    case true
+    thm less.IH
+    then show ?thesis by simp
+  next
+    case false
+    then show ?thesis by simp
+  next
+    case zero
+    then show ?thesis by simp
+  next
+    case (If t1 t2 t3)
+    then show ?thesis sorry
+  next
+    case (suc t1)
+    with less.IH and less.prems show ?thesis by force
+  next
+    case (pred x6)
+    with less.IH and less.prems show ?thesis by force
+  next
+    case (iszero x7)
+    with less.IH and less.prems show ?thesis by force
+  qed
+qed
+
+datatype small_term = suc small_term | zero
+
+fun consts_st :: "small_term \<Rightarrow> small_term set" where
+"consts_st zero = {zero}" |
+"consts_st (suc t1) = consts_st t1"
+
+fun size_st :: "small_term \<Rightarrow> nat" where
+"size_st zero = 1" |
+"size_st (suc t1) = (size_st t1) + 1"
+
+fun depth_st :: "small_term \<Rightarrow> nat" where
+"depth_st  zero = 1" |
+"depth_st (suc t1) = (depth_st t1) + 1"
+
+lemma "\<lbrakk>depth_st t = d\<rbrakk> \<Longrightarrow> card (consts_st t) \<le> size_st t"
+proof (induction d arbitrary: t rule: less_induct)
+  case (less x)
+  then show ?case
+  proof (cases t)
+    case (suc x1)
+    with less.prems and less.IH show ?thesis by force
+  next
+    case zero
+    then show ?thesis by simp
+  qed
+qed
+
+lemma "card (tapl_constsf t) \<le> tapl_sizef t"
+proof(induction t)
+  case true
+  then show ?case by simp
+next
+  case false
+  then show ?case by simp
+next
+  case zero
+  then show ?case by simp
+next
+  case (If t1 t2 t3)
+  then show ?case sorry
+next
+  case (suc t)
+  then show ?case by simp
+next
+  case (pred t)
+  then show ?case by simp
+next
+  case (iszero t)
+  then show ?case by simp
+qed
+
 section "Boolean expressions"
 
 datatype tapl_bool =
@@ -156,8 +373,6 @@ next
   case (IfElse t1 t2 t3)
   then show ?case by simp
 qed
-
-export_code bevalf in OCaml
 
 code_pred beval1 .
 
@@ -307,114 +522,5 @@ beval1_funny: "beval2_funny t2 t2' \<Longrightarrow> beval2_funny (IfElse t1 t2 
 
 values "{t. beval1_funny (IfElse TTrue TTrue FFalse) t}"
 
-section "Arithmetic Expressions"
-
-datatype tapl_arith = 
-  TTrue | 
-  FFalse | 
-  Zero |
-  IfElse tapl_arith tapl_arith tapl_arith |
-  Succ tapl_arith |
-  Pred  tapl_arith |
-  IsZero tapl_arith
-
-definition is_numeric :: "tapl_arith \<Rightarrow> bool" where
-"is_numeric t = 
-  (case t of 
-    Zero \<Rightarrow> True |
-    Succ _ \<Rightarrow> True |
-    _ \<Rightarrow> False)" 
-
-definition "is_value_arith" :: "tapl_arith \<Rightarrow> bool" where
-"is_value_arith t =
-  (case t of 
-    TTrue \<Rightarrow> True |
-    FFalse \<Rightarrow> True |
-    Zero \<Rightarrow> True |
-    Succ _ \<Rightarrow> True |
-    _ \<Rightarrow> False)"
-
-inductive aeval1 :: "tapl_arith \<Rightarrow> tapl_arith \<Rightarrow> bool" where
-(* Bool evaluation *)
-aeval1_if_true: "aeval1 (IfElse TTrue t2 t3) t2" |
-aeval1_if_false: "aeval1 (IfElse FFalse t2 t3) t3" |
-aeval1_if: "aeval1 t1 t1' \<Longrightarrow> aeval1 (IfElse t1 t2 t3) (IfElse t1' t2 t3)" |
-
-(* Arithmetic evaluation *)
-aeval1_succ: "aeval1 t1 t1' \<Longrightarrow> aeval1 (Succ t1) (Succ t1')" |
-aeval1_pred_0: "aeval1 (Pred Zero) Zero" |
-aeval1_pred_succ_0: "is_numeric nv \<Longrightarrow> aeval1 (Pred (Succ nv)) nv" |
-aeval1_pred: "aeval1 t1 t1' \<Longrightarrow> aeval1 (Pred t1) (Pred t1')" |
-aeval1_iszero_0: "aeval1 (IsZero Zero) TTrue" |
-aeval1_iszero_suc: "is_numeric nv \<Longrightarrow> aeval1 (IsZero (Succ nv)) FFalse" |
-aeval1_iszero: "aveal1 t1 t1' \<Longrightarrow> aeval1 (IsZero t1) (IsZero t1')"
-
-lemma "aeval1 (IfElse (IsZero Zero) TTrue FFalse) (IfElse TTrue TTrue FFalse)"
-  apply(rule aeval1_if)
-  apply(rule aeval1_iszero_0)
-  done
-
-(*
-theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
-proof (induction t)
-  case TTrue
-  then show ?case sorry
-next
-  case FFalse
-  then show ?case sorry
-next
-  case Zero
-  then show ?case sorry
-next
-  case (IfElse t1 t2 t3)
-  then show ?case sorry
-next
-  case (Succ t1)
-  then show ?case
-    (* Sledgehammer found a proof *)
-    (*by (smt (verit, ccfv_SIG) aeval1.simps tapl_arith.distinct(31) tapl_arith.distinct(37) tapl_arith.distinct(39) tapl_arith.inject(2))*)
-next
-  case (Pred t)
-  then show ?case sorry
-next
-  case (IsZero t)
-  then show ?case sorry
-qed
-
-theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
-proof (induction t t' arbitrary: t'' rule: aeval1.induct)
-  case (aeval1_if_true t2 t3)
-  then show ?case by (auto intro: aeval1_if_true elim: aeval1.cases)
-next
-  case (aeval1_if_false t2 t3)
-  then show ?case sorry
-next
-  case (aeval1_if t1 t1' t2 t3)
-  then show ?case by (auto del: aeval1.simps)
-next
-  case (aeval1_succ t1 t1')
-  from aeval1_succ.prems aeval1_succ.hyps show ?case
-  by auto(elim: aeval1.cases)
-next
-  case aeval1_pred_0
-  then show ?case sorry
-next
-  case (aeval1_pred_succ_0 nv)
-  then show ?case sorry
-next
-  case (aeval1_pred t1 t1')
-  then show ?case sorry
-next
-  case aeval1_iszero_0
-  then show ?case sorry
-next
-  case (aeval1_iszero_suc nv)
-  then show ?case sorry
-next
-  case (aeval1_iszero aveal1 t1 t1')
-  then show ?case sorry
-qed
-
-*)
 
 end
