@@ -31,6 +31,7 @@ let loop filename () =
   close_in inx
 
 let () = loop "arithprog.txt" ()
+
 (*
 let () =
   Command.basic_spec ~summary:"Parse and display JSON"

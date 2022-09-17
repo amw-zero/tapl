@@ -2,6 +2,9 @@
 %token PRED
 %token TRUE
 %token FALSE
+%token IF
+%token THEN
+%token ELSE
 %token LPAREN
 %token RPAREN
 %token EOF
@@ -21,4 +24,6 @@ expression:
   | FALSE                         { Core.Arith.AFalse}
   | s = SUCC e = expression       { Core.Arith.ASucc(e) }
   | s = PRED e = expression       { Core.Arith.APred(e) }
+  | IF e1 = expression THEN e2 = expression ELSE e3 = expression 
+                                  { Core.Arith.AIfElse(e1, e2, e3) }
   | LPAREN e = expression RPAREN  { e }
