@@ -6,12 +6,14 @@
 %token RPAREN
 %token EOF
 
-%start toplevel
-%type <Core.Arith.arith> toplevel 
+%start prog
+%type <Core.Arith.arith option> prog 
 
 %%
 
-toplevel: e = expression EOF { e };
+prog: 
+  | e = expression EOF { Some e }
+  | EOF                { None };
 
 
 expression:

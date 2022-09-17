@@ -3,9 +3,9 @@
 
 (library
  (name arith_ocaml)
- (modules parser core))
+ (modules parser lexer util core))
 
-
+(ocamllex lexer)
 
 (env
  (dev
