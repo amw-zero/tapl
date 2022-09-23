@@ -84,12 +84,15 @@ end;; (*struct Predicate*)
 
 module Arith : sig
   type arith = ATrue | AFalse | AZero | AIfElse of arith * arith * arith |
-    ASucc of arith | APred of arith | AIsZero of arith
+    ASucc of arith | APred of arith | AIsZero of arith | AArrowFunc of string * arith |
+    AApplyFunc of arith * arith
+
   val bigstep_ex : arith -> arith
 end = struct
 
 type arith = ATrue | AFalse | AZero | AIfElse of arith * arith * arith |
-  ASucc of arith | APred of arith | AIsZero of arith;;
+  ASucc of arith | APred of arith | AIsZero of arith | AArrowFunc of string * arith |
+  AApplyFunc of arith * arith;;
 
 let rec equal_aritha
   x0 x1 = match x0, x1 with APred x6, AIsZero x7 -> false

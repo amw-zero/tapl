@@ -3,7 +3,7 @@
 
 (library
  (name arith_ocaml)
- (modules parser lexer util core))
+ (modules parse parser lexer util core))
 
 (ocamllex lexer)
 

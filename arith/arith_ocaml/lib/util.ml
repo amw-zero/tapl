@@ -8,3 +8,5 @@ let rec print_arith t = match t with
   | ASucc t -> "succ " ^ print_arith t
   | APred t -> "pred " ^ print_arith t 
   | AIsZero t -> "iszero " ^ print_arith t
+  | AArrowFunc(iden, body) -> "() " ^ iden ^ " " ^ print_arith body
+  | AApplyFunc(f, x) -> "Application: (" ^ print_arith f ^ " " ^ print_arith x ^ ")"

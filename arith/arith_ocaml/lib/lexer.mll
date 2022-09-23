@@ -6,6 +6,7 @@
 }
 
 let whitespace = [' ' '\t' '\r' '\n']
+let iden = ['_' 'a'-'z' 'A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
 
 rule read = parse
   | whitespace+       { read lexbuf }
@@ -20,5 +21,7 @@ rule read = parse
   | "iszero"          { ISZERO }
   | '('               { LPAREN }
   | ')'               { RPAREN }
+  | "=>"              { ARROW }
+  | iden              { ID (lexeme lexbuf) }
   | _                 { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof               { EOF }
