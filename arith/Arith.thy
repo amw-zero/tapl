@@ -20,7 +20,7 @@ definition is_numeric :: "arith \<Rightarrow> bool" where
   (case t of 
     AZero \<Rightarrow> True |
     ASucc _ \<Rightarrow> True |
-    _ \<Rightarrow> False)" 
+    _ \<Rightarrow> False)"
 
 definition "is_value_arith" :: "arith \<Rightarrow> bool" where
 "is_value_arith t =
@@ -46,8 +46,6 @@ aeval1_iszero_0: "aeval1 (AIsZero AZero) ATrue" |
 aeval1_iszero_suc: "is_numeric nv \<Longrightarrow> aeval1 (AIsZero (ASucc nv)) AFalse" |
 aeval1_iszero: "aveal1 t1 t1' \<Longrightarrow> aeval1 (AIsZero t1) (AIsZero t1')"
 
-print_theorems
-
 lemma "aeval1 (AIfElse (AIsZero AZero) ATrue AFalse) (AIfElse ATrue ATrue AFalse)"
   apply(rule aeval1_if)
   apply(rule aeval1_iszero_0)
@@ -61,6 +59,7 @@ lemma "aeval1 (ASucc (AIfElse (AIsZero AZero) ATrue AFalse)) (ASucc (AIfElse ATr
 
 (*
 theorem arith_determinacy: "\<lbrakk>aeval1 t t'; aeval1 t' t''\<rbrakk> \<Longrightarrow> t' = t''"
+  using [[simp_trace]]
 proof (induction t t' arbitrary: t'' rule: aeval1.induct)
   case (aeval1_if_true t2 t3)
   then show ?case sorry
@@ -69,7 +68,7 @@ next
   then show ?case sorry
 next
   case (aeval1_if t1 t1' t2 t3)
-  then show ?case sorry
+  from aeval1_if.prems aeval1_if.hyps show ?case sorry
 next
   case (aeval1_succ t1 t1')
   then show ?case by (auto elim: aeval1.cases)
@@ -95,9 +94,10 @@ qed
 *)
 
 inductive aeval :: "arith \<Rightarrow> arith \<Rightarrow> bool" where
-once: "aeval t t' \<Longrightarrow> aeval t t'" |
 reflexive: "aeval t t" |
-transitive: "aeval t t' \<Longrightarrow> aeval t' t'' \<Longrightarrow> aeval t t''"
+step: "aeval1 t t' \<Longrightarrow> aeval t' t'' \<Longrightarrow> aeval t t''"
+
+print_theorems
 
 section "Big-step semantics"
 
@@ -120,28 +120,64 @@ export_code bigstep_ex ATrue in OCaml file_prefix "core"
 
 values "{t. bigstep ATrue t}"
 
+fun bigstep_f :: "arith \<Rightarrow> arith" where
+"bigstep_f (AIfElse ATrue t2 t3) = bigstep_f t2" |
+"bigstep_f _ = ATrue"
+
 (*
-theorem "bigstep t t' = aeval t t'"
-proof(induction t)
-  case TTrue
+
+theorem "bigstep t t' \<Longrightarrow> aeval t t'"
+proof(induction t t' rule: bigstep.induct)
+  case (bval t)
+  then show ?case
+    by (simp add: aeval.reflexive)
+next
+  case (bif_true t1 t2 v t3)
   then show ?case sorry
 next
-  case FFalse
+  case (bif_false t1 t3 v t2)
   then show ?case sorry
 next
-  case Zero
+  case (bsucc v t)
+  then show ?case try 
+next
+  case (bpred_zero t)
   then show ?case sorry
 next
-  case (IfElse t1 t2 t3)
+  case (bpred_succ v t)
   then show ?case sorry
 next
-  case (Succ t)
+  case (bis_zero_zero t)
   then show ?case sorry
 next
-  case (Pred t)
+  case (bis_zero_succ v t)
+  then show ?case sorry
+qed
+
+*)
+
+(*
+lemma "aeval t1 t1' \<Longrightarrow> aeval (AIfElse t1 t2 t3) (AIfElse t1' t2 t3)"
+proof(induction t1)
+  case ATrue
   then show ?case sorry
 next
-  case (IsZero t)
+  case AFalse
+  then show ?case sorry
+next
+  case AZero
+  then show ?case sorry
+next
+  case (AIfElse t11 t12 t13)
+  then show ?case by (auto elim: aeval.cases
+next
+  case (ASucc t1)
+  then show ?case sorry
+next
+  case (APred t1)
+  then show ?case sorry
+next
+  case (AIsZero t1)
   then show ?case sorry
 qed
 *)

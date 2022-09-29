@@ -278,33 +278,6 @@ proof (induction d arbitrary: t rule: less_induct)
   qed
 qed
 
-datatype small_term = suc small_term | zero
-
-fun consts_st :: "small_term \<Rightarrow> small_term set" where
-"consts_st zero = {zero}" |
-"consts_st (suc t1) = consts_st t1"
-
-fun size_st :: "small_term \<Rightarrow> nat" where
-"size_st zero = 1" |
-"size_st (suc t1) = (size_st t1) + 1"
-
-fun depth_st :: "small_term \<Rightarrow> nat" where
-"depth_st  zero = 1" |
-"depth_st (suc t1) = (depth_st t1) + 1"
-
-lemma "\<lbrakk>depth_st t = d\<rbrakk> \<Longrightarrow> card (consts_st t) \<le> size_st t"
-proof (induction d arbitrary: t rule: less_induct)
-  case (less x)
-  then show ?case
-  proof (cases t)
-    case (suc x1)
-    with less.prems and less.IH show ?thesis by force
-  next
-    case zero
-    then show ?thesis by simp
-  qed
-qed
-
 lemma "card (tapl_constsf t) \<le> tapl_sizef t"
 proof(induction t)
   case true
@@ -521,6 +494,5 @@ beval1_if: "beval2_funny t1 t1' \<Longrightarrow> beval2_funny (IfElse t1 t2 t3)
 beval1_funny: "beval2_funny t2 t2' \<Longrightarrow> beval2_funny (IfElse t1 t2 t3) (IfElse t1 t2' t3)"
 
 values "{t. beval1_funny (IfElse TTrue TTrue FFalse) t}"
-
 
 end
